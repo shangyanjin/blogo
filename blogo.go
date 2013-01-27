@@ -29,6 +29,10 @@ type Post struct {
 	Comments []Comment
 }
 
+func (p *Post) create() error {
+	return ioutil.WriteFile("content/posts/"+strings.Replace(p.Title, " ", "-", -1)+".txt", p.Body, 0600)
+}
+
 type byDate []os.FileInfo
 
 func (f byDate) Len() int           { return len(f) }
@@ -105,17 +109,15 @@ const (
 func getPost(title string) (post Post, error error) {
 	post.Title = strings.Replace(title, "-", " ", -1)
 	filename := title + ".txt"
-	post.Body, error = ioutil.ReadFile(wwwroot + "posts/" + filename)
-	commentList, error := ReadDir(wwwroot + "comments/" + title + "/")
+	post.Body, error = ioutil.ReadFile("content/posts/" + filename)
+	commentList, error := ReadDir("content/comments/" + title + "/")
 	//var tempc []Comment
 	for _, comment := range commentList {
 		var c Comment
 		c.Title = strings.Replace(strings.Replace(comment.Name(), "-", " ", -1), ".txt", " ", -1)
-		c.Body, error = ioutil.ReadFile(wwwroot + "comments/" + title + "/" + comment.Name())
+		c.Body, error = ioutil.ReadFile("content/comments/" + title + "/" + comment.Name())
 		post.Comments = append(post.Comments, c)
-		fmt.Println(comment.Name())
 	}
-	fmt.Println(len(post.Comments))
 	return post, nil
 }
 
@@ -123,15 +125,28 @@ func view(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[viewLen:]
 	post, error := getPost(title)
 	if error != nil {
-		fmt.Println(error)
+		fmt.Println("Error: %s\n", error)
 		return
 	}
-	t, err := template.ParseFiles(wwwroot + "view.html")
+	t, err := template.ParseFiles("content/view.html")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println(post.Body)
 	t.Execute(w, post)
+}
+
+func new(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "content/new.html")
+}
+
+func create(w http.ResponseWriter, r *http.Request) {
+	title := r.FormValue("title")
+	body := r.FormValue("body")
+	p := &Post{Title: title, Body: []byte(body)}
+	p.create()
+	http.Redirect(w, r, "/view/"+strings.Replace(title, " ", "-", -1), http.StatusFound)
 }
 
 func index_handler(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +157,8 @@ func index_handler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	fmt.Printf("BloGo Starting up..")
 	http.HandleFunc("/view/", view)
+	http.HandleFunc("/new/", new)
+	http.HandleFunc("/create/", create)
 	http.HandleFunc("/hello/", index_handler)
 	http.ListenAndServe(":8080", nil)
 }
