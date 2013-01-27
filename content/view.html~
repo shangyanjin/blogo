@@ -1,0 +1,5 @@
+<html>
+<h1>{{.Title}}</h1>
+<div><textarea name="body" rows="20" cols="80">{{printf "%s" .Body}}</textarea></div>
+<div><textarea name="Comments" rows="20" cols="60">{{printf "%s" .Comments}}</textarea></div>
+</html>
